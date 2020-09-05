@@ -97,8 +97,11 @@ class NES_Cpu {
 			Adressing Mode Variables
 
 			Variables that are used for different addressing modes
-		*/
 
+			We need a flag for the ACC addressing mode since ACC is not a lone addressing mode like IMP is
+		*/
+		unsigned char use_accumulator;					// Flag to use accumulator
+		unsigned short target_address;					// Stores target address for addressing modes
 
 
 
@@ -214,7 +217,7 @@ class NES_Cpu {
 		int TXS();
 		int TYA();
 
-		// Illegal instruction
+		// Illegal instructions
 		int ILL();
 
 		// All addressing mode functions

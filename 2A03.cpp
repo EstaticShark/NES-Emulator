@@ -14,6 +14,9 @@ NES_Cpu::NES_Cpu() {
 	Y = 0x00;
 	proc_status = 0x00;
 
+	use_accumulator = 0;
+	target_address = 0x0000;
+
 	memset(memory, 0, 0xFFFF);			// Clear memory
 }
 
@@ -50,6 +53,9 @@ void NES_Cpu::cycle() {
 	// https://docs.microsoft.com/en-us/cpp/cpp/pointer-to-member-operators-dot-star-and-star?view=vs-2019
 	// https://stackoverflow.com/questions/6586205/what-are-the-pointer-to-member-and-operators-in-c
 
+	// Flag setup
+	use_accumulator = 0;
+
 	// Setup addressing mode variables
 	(this->*instruction_table[opcode].addr_setup)();
 
@@ -64,6 +70,22 @@ void NES_Cpu::cycle() {
 
 	// Increment program counter
 	pc++;
+}
+
+
+/*
+	Interrupt implementations are here
+*/
+void NES_Cpu::irq() {
+
+}
+
+void NES_Cpu::nmi() {
+
+}
+
+void NES_Cpu::reset() {
+
 }
 
 
@@ -367,65 +389,141 @@ int NES_Cpu::ILL() {
 
 int NES_Cpu::ACC() {
 
+	use_accumulator = 1;
+
 	return 0;
 }
 
 int NES_Cpu::ABS() {
+
+	// Read little endian byte address
+	target_address = memory[pc + 1] | memory[pc + 2] << 8;
+
+	// Update to show that we have made two accesses
+	pc += 2;
 
 	return 0;
 }
 
 int NES_Cpu::ABS_X() {
 
+	// Read little endian byte address and add X
+	target_address = memory[pc + 1] | memory[pc + 2] << 8;
+	target_address += X;
+
+	// Update to show that we have made two accesses
+	pc += 2;
+
 	return 0;
 }
 
 int NES_Cpu::ABS_Y() {
 
+	// Read little endian byte address and add Y
+	target_address = memory[pc + 1] | memory[pc + 2] << 8;
+	target_address += Y;
+
+	// Update to show that we have made two accesses
+	pc += 2;
+
 	return 0;
 }
 
 int NES_Cpu::IMM() {
+	
+	// Data is in next byte
+	target_address = pc + 1;
+
+	// Update to show that we have made an additional access
+	pc += 1;
 
 	return 0;
 }
 
 int NES_Cpu::IMP() {
 
+	// No need to do anything
+
 	return 0;
 }
 
 int NES_Cpu::IND() {
+
+	// Set target address to the address in the next two bytes
+	unsigned short indirect_address = memory[pc + 2] << 8 | memory[pc + 1];
+	target_address = memory[indirect_address + 1] << 8 | memory[indirect_address];
+
+	// Update to show that we have made two accesses
+	pc += 2;
 
 	return 0;
 }
 
 int NES_Cpu::IND_X() {
 
+	// Add immediate and X for the indirect address
+	unsigned short indirect_address = memory[pc + 1] + X;
+	target_address = memory[indirect_address + 1] << 8 | memory[indirect_address];
+
+	// Update to show that we have made an additional access
+	pc += 1;
+
 	return 0;
 }
 
 int NES_Cpu::IND_Y() {
+
+	// Add immediate's data and Y for the indirect address
+	unsigned short indirect_address = memory[pc + 1];
+	target_address = memory[indirect_address + 1] << 8 | memory[indirect_address];
+	target_address += Y;
+
+	// Update to show that we have made an additional access
+	pc += 1;
 
 	return 0;
 }
 
 int NES_Cpu::REL() {
 
+	// Target address is the pc plus the value after it
+	target_address = pc + memory[pc + 1];
+
+	// Update to show that we have made an additional access
+	pc += 1;
+
 	return 0;
 }
 
 int NES_Cpu::ZPG() {
+
+	// Target address is in the next byte
+	target_address = memory[pc + 1];
+
+	// Update to show that we have made an additional access
+	pc += 1;
 
 	return 0;
 }
 
 int NES_Cpu::ZPG_X() {
 
+	// Target address is the first byte of the sum of the X register and the next byte
+	target_address = (memory[pc + 1] + X) & 0x00FF;
+
+	// Update to show that we have made an additional access
+	pc += 1;
+
 	return 0;
 }
 
 int NES_Cpu::ZPG_Y() {
+
+	// Target address is the first byte of the sum of the Y register and the next byte
+	target_address = (memory[pc + 1] + Y) & 0x00FF;
+
+	// Update to show that we have made an additional access
+	pc += 1;
 
 	return 0;
 }
