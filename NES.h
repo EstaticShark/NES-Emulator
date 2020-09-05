@@ -104,7 +104,6 @@ class NES_Cpu {
 		unsigned short target_address;					// Stores target address for addressing modes
 
 
-
 		/*
 			INSTRUCTION TABLE
 

@@ -94,57 +94,224 @@ void NES_Cpu::reset() {
 
 	Returns 0 upon success and returns 1 when requiring an additional clock cycle.
 */
+
+/*
+	N Z C I D V
+    + + + - - +
+*/
 int NES_Cpu::ADC() {
 
+	// Add the accumulator with the data at the target address and the carry bit
+	unsigned short sum = accumulator + memory[target_address] + ((proc_status & CARRY_FLAG) ? 1 : 0);
+
+	proc_status &= ~(CARRY_FLAG | ZERO_FLAG | NEGATIVE_FLAG | OVERFLOW_FLAG);
+	
+	// Check flags
+	if (sum >= 0x0100) { // Carry flag 
+		proc_status |= CARRY_FLAG;
+	}
+
+	if ((sum & 0x00FF) == 0) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
+
+	if (sum & 0x0080) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	// Explanation for signed overflow flags: http://forums.nesdev.com/viewtopic.php?t=6331
+	if (!((accumulator ^ memory[target_address]) & 0x80) && ((accumulator ^ sum) & 0x80)) { // Overflow flag, (!((AC ^ src) & 0x80) && ((AC ^ temp) & 0x80))
+		proc_status |= OVERFLOW_FLAG;
+	}
+
+	// Store result in accumulator
+	accumulator = sum & 0x00FF;
+
 	return 0;
 }
 
+/*
+	N Z C I D V
+	+ + - - - -
+*/
 int NES_Cpu::AND() {
 
+	// Bitwise AND with accumulator and data. Result is 1 byte
+	accumulator = accumulator & memory[target_address];
+
+	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG);
+
+	// Check flags
+	if (accumulator & 0x0080) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	if (accumulator == 0) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
+
 	return 0;
 }
 
+
+/*
+	N Z C I D V
+	+ + + - - -
+*/
 int NES_Cpu::ASL() {
 
+	// Arithmetic shift left the accumulator
+	accumulator <<= 1;
+
+	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG | CARRY_FLAG);
+
+	// Check flags
+	if (accumulator & 0x0080) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	if (accumulator == 0) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
+
+	if (accumulator >= 0x0100) { // Carry flag 
+		proc_status |= CARRY_FLAG;
+	}
+
 	return 0;
 }
 
+/*
+	N Z C I D V
+	- - - - - -
+*/
 int NES_Cpu::BCC() {
 
+	// Branch if the carry flag is clear
+	if (!(proc_status & CARRY_FLAG)) { // Carry flag 
+		pc = target_address;
+	}
+
 	return 0;
 }
 
+/*
+	N Z C I D V
+	- - - - - -
+*/
 int NES_Cpu::BCS() {
 
+	// Branch if the carry flag is set
+	if (proc_status & CARRY_FLAG) {
+		pc = target_address;
+	}
+
 	return 0;
 }
 
+/*
+	N Z C I D V
+	- - - - - -
+*/
 int NES_Cpu::BEQ() {
 
+	// Branch if the zero flag is set
+	if (proc_status & ZERO_FLAG) {
+		pc = target_address;
+	}
+
 	return 0;
 }
 
+/*
+	 N  Z C I D  V
+     M7 + - - - M6
+*/
 int NES_Cpu::BIT() {
 
+	// Bitwise AND with accumulator and data, the result is not saved and is only used to set flags
+	unsigned short result = accumulator & memory[target_address];
+
+	proc_status &= ~(ZERO_FLAG | NEGATIVE_FLAG | OVERFLOW_FLAG);
+
+	// Check flags
+	if ((result & 0x00FF) == 0) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
+
+	if (memory[target_address] & NEGATIVE_FLAG) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	if (memory[target_address] & OVERFLOW_FLAG) { // Overflow flag
+		proc_status |= OVERFLOW_FLAG;
+	}
+
 	return 0;
 }
 
+/*
+	N Z C I D V
+	- - - - - -
+*/
 int NES_Cpu::BMI() {
 
+	// Branch if the negative flag is set
+	if (proc_status & NEGATIVE_FLAG) {
+		pc = target_address;
+	}
+
 	return 0;
 }
 
+/*
+	N Z C I D V
+	- - - - - -
+*/
 int NES_Cpu::BNE() {
+	
+	// Branch if the zero flag is clear
+	if (!(proc_status & ZERO_FLAG)) {
+		pc = target_address;
+	}
 
 	return 0;
 }
 
+/*
+	N Z C I D V
+	- - - - - -
+*/
 int NES_Cpu::BPL() {
 
+	// Branch if the negative flag is clear
+	if (!(proc_status & NEGATIVE_FLAG)) {
+		pc = target_address;
+	}
+
 	return 0;
 }
 
+/*
+	N Z C I D V
+    - - - 1 - -
+*/
 int NES_Cpu::BRK() {
+
+	// Set the interrupt disable flag
+	proc_status |= DISABLE_FLAG;
+
+	// Push the 2 byte program counter into the stack, remember to do it in little endian
+	memory[sp] = (pc >> 8) & 0x00FF;
+	memory[sp - 1] = pc & 0x00FF;
+	sp -= 2;
+
+	// Push the proc_status with the break bit set into the stack
+	memory[sp] = proc_status | BREAK_FLAG;
+	sp--;
+
+	// The program counter then must jump to the instruction in $FFFF and $FFFE
+	pc = (memory[0xFFFF] << 8) | memory[0xFFFE];
 
 	return 0;
 }
