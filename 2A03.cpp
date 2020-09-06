@@ -160,22 +160,44 @@ int NES_Cpu::AND() {
 */
 int NES_Cpu::ASL() {
 
-	// Arithmetic shift left the accumulator
-	accumulator <<= 1;
+	if (use_accumulator) {
+		// Arithmetic shift left the accumulator
+		accumulator <<= 1;
 
-	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG | CARRY_FLAG);
+		proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG | CARRY_FLAG);
 
-	// Check flags
-	if (accumulator & 0x0080) { // Negative flag
-		proc_status |= NEGATIVE_FLAG;
+		// Check flags
+		if (accumulator & 0x0080) { // Negative flag
+			proc_status |= NEGATIVE_FLAG;
+		}
+
+		if ((accumulator & 0x00FF) == 0) { // Zero flag
+			proc_status |= ZERO_FLAG;
+		}
+
+		if (accumulator >= 0x0100) { // Carry flag 
+			proc_status |= CARRY_FLAG;
+		}
 	}
+	else {
+		// Arithmetic shift left the data at the target address
+		unsigned short shifted_result = memory[target_address] << 1;
+		memory[target_address] = shifted_result;
 
-	if (accumulator == 0) { // Zero flag
-		proc_status |= ZERO_FLAG;
-	}
+		proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG | CARRY_FLAG);
 
-	if (accumulator >= 0x0100) { // Carry flag 
-		proc_status |= CARRY_FLAG;
+		// Check flags
+		if (shifted_result & 0x0080) { // Negative flag
+			proc_status |= NEGATIVE_FLAG;
+		}
+
+		if ((shifted_result & 0x00FF) == 0) { // Zero flag
+			proc_status |= ZERO_FLAG;
+		}
+
+		if (shifted_result >= 0x0100) { // Carry flag 
+			proc_status |= CARRY_FLAG;
+		}
 	}
 
 	return 0;
@@ -316,152 +338,614 @@ int NES_Cpu::BRK() {
 	return 0;
 }
 
+/*
+	N Z C I D V
+	- - - - - -
+*/
 int NES_Cpu::BVC() {
 
+	// Branch if the overflow flag is clear
+	if (!(proc_status & OVERFLOW_FLAG)) {
+		pc = target_address;
+	}
+
 	return 0;
 }
 
+/*
+	N Z C I D V
+	- - - - - -
+*/
 int NES_Cpu::BVS() {
 
+	// Branch if the overflow flag is set
+	if (proc_status & OVERFLOW_FLAG) {
+		pc = target_address;
+	}
+
 	return 0;
 }
 
+/*
+	N Z C I D V
+    - - 0 - - -
+*/
 int NES_Cpu::CLC() {
 
+	// Clear the carry flag
+	if (proc_status & CARRY_FLAG) {
+		proc_status &= ~CARRY_FLAG;
+	}
+
 	return 0;
 }
 
+/*
+	N Z C I D V
+	- - - - 0 -
+*/
 int NES_Cpu::CLD() {
 
+	// Clear the decimal flag
+	if (proc_status & DECIMAL_FLAG) {
+		proc_status &= ~DECIMAL_FLAG;
+	}
+
 	return 0;
 }
 
+/*
+	N Z C I D V
+	- - - 0 - -
+*/
 int NES_Cpu::CLI() {
 
+	// Clear the interrupt disable flag
+	if (proc_status & DISABLE_FLAG) {
+		proc_status &= ~DISABLE_FLAG;
+	}
+
 	return 0;
 }
 
+/*
+	N Z C I D V
+	- - - - - 0
+*/
 int NES_Cpu::CLV() {
 
+	// Clear the overflow flag
+	if (proc_status & OVERFLOW_FLAG) {
+		proc_status &= ~OVERFLOW_FLAG;
+	}
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+     + + + - - -
+*/
 int NES_Cpu::CMP() {
+	unsigned char data = memory[target_address];
+	unsigned short diff = accumulator - data;
+
+	proc_status &= ~(NEGATIVE_FLAG | CARRY_FLAG | ZERO_FLAG);
+
+	if (accumulator < data) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	if (accumulator >= data) { // Carry flag
+		proc_status |= CARRY_FLAG;
+	}
+	
+	if ((diff & 0x00FF) == 0x0000) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
 
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 + + + - - -
+*/
 int NES_Cpu::CPX() {
 
+	unsigned char data = memory[target_address];
+	unsigned short diff = X - data;
+
+	proc_status &= ~(NEGATIVE_FLAG | CARRY_FLAG | ZERO_FLAG);
+
+	if (X < data) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	if (X >= data) { // Carry flag
+		proc_status |= CARRY_FLAG;
+	}
+
+	if ((diff & 0x00FF) == 0x0000) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 + + + - - -
+*/
 int NES_Cpu::CPY() {
 
+	unsigned char data = memory[target_address];
+	unsigned short diff = Y - data;
+
+	proc_status &= ~(NEGATIVE_FLAG | CARRY_FLAG | ZERO_FLAG);
+
+	if (Y < data) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	if (Y >= data) { // Carry flag
+		proc_status |= CARRY_FLAG;
+	}
+
+	if ((diff & 0x00FF) == 0x0000) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 + + - - - -
+*/
 int NES_Cpu::DEC() {
+	memory[target_address]--;
+
+	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG);
+
+	if (memory[target_address] & 0x80) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	if (memory[target_address] == 0x00) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
 
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 + + - - - -
+*/
 int NES_Cpu::DEX() {
+	X--;
+
+	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG);
+
+	if (X & 0x80) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	if (X == 0x00) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
 
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 + + - - - -
+*/
 int NES_Cpu::DEY() {
+	Y--;
+
+	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG);
+
+	if (Y & 0x80) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	if (Y == 0x00) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
 
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 + + - - - -
+*/
 int NES_Cpu::EOR() {
 
+	accumulator ^= memory[target_address];
+
+	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG);
+
+	if (accumulator & 0x80) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	if (accumulator == 0x00) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 + + - - - -
+*/
 int NES_Cpu::INC() {
+	memory[target_address]++;
+
+	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG);
+
+	if (memory[target_address] & 0x80) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	if (memory[target_address] == 0x00) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
 
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 + + - - - -
+*/
 int NES_Cpu::INX() {
+	X++;
+
+	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG);
+
+	if (X & 0x80) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	if (X == 0x00) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
 
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 + + - - - -
+*/
 int NES_Cpu::INY() {
+	Y++;
+
+	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG);
+
+	if (Y & 0x80) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	if (Y == 0x00) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
 
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 - - - - - -
+*/
 int NES_Cpu::JMP() {
 
+	// Set program counter to the 2 byte instruction in the target address
+	pc = (memory[target_address + 1] << 8) | memory[target_address];
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 - - - - - -
+*/
 int NES_Cpu::JSR() {
 
+	// Store pc into stack first
+	memory[sp] = (pc >> 8) & 0x00FF;
+	memory[sp - 1] = pc & 0x00FF;
+	sp -= 2;
+
+	// Set program counter to the 2 byte instruction in the target address
+	pc = (memory[target_address + 1] << 8) | memory[target_address];
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 + + - - - -
+*/
 int NES_Cpu::LDA() {
+	accumulator = memory[target_address];
+
+	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG);
+
+	if (accumulator & 0x80) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	if (accumulator == 0x00) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
 
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 + + - - - -
+*/
 int NES_Cpu::LDX() {
+	X = memory[target_address];
+
+	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG);
+
+	if (X & 0x80) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	if (X == 0x00) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
 
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 + + - - - -
+*/
 int NES_Cpu::LDY() {
+	Y = memory[target_address];
+
+	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG);
+
+	if (Y & 0x80) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	if (Y == 0x00) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
 
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 0 + + - - -
+*/
 int NES_Cpu::LSR() {
 
+	if (use_accumulator) {
+		// Arithmetic shift right the accumulator
+		accumulator >>= 1;
+
+		proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG | CARRY_FLAG);
+
+		if ((accumulator & 0x00FF) == 0) { // Zero flag
+			proc_status |= ZERO_FLAG;
+		}
+
+		if (accumulator >= 0x0100) { // Carry flag 
+			proc_status |= CARRY_FLAG;
+		}
+	}
+	else {
+		// Arithmetic shift right the data at the target address
+		unsigned short shifted_result = memory[target_address] >> 1;
+		memory[target_address] = shifted_result;
+
+		proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG | CARRY_FLAG);
+
+		if ((shifted_result & 0x00FF) == 0) { // Zero flag
+			proc_status |= ZERO_FLAG;
+		}
+
+		if (shifted_result >= 0x0100) { // Carry flag 
+			proc_status |= CARRY_FLAG;
+		}
+	}
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 - - - - - -
+*/
 int NES_Cpu::NOP() {
 
+	// Do nothing
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 + + - - - -
+*/
 int NES_Cpu::ORA() {
 
+	accumulator |= memory[target_address];
+
+	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG);
+
+	if (accumulator & 0x80) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	if (accumulator == 0x00) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 - - - - - -
+*/
 int NES_Cpu::PHA() {
 
+	// Push accumulator onto stack
+	sp--;
+	memory[sp] = accumulator;
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 - - - - - -
+*/
 int NES_Cpu::PHP() {
 
+	// Push processor status onto stack
+	sp--;
+	memory[sp] = proc_status;
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 + + - - - -
+*/
 int NES_Cpu::PLA() {
 
+	// Pull accumulator from stack
+	sp++;
+	accumulator = memory[sp];
+
+	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG);
+
+	if (accumulator & 0x80) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	if (accumulator == 0x00) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
+
 	return 0;
 }
 
+
+/*
+	 N Z C I D V
+	 From stacks
+*/
 int NES_Cpu::PLP() {
 
+	// Pull proc_status from stack
+	sp++;
+	proc_status = memory[sp];
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 + + + - - -
+*/
 int NES_Cpu::ROL() {
 
+	// Set up the data
+	unsigned char *reg;
+	if (use_accumulator) {
+		reg = &accumulator;
+	}
+	else {
+		reg = &memory[target_address];
+	}
+
+	proc_status &= ~(CARRY_FLAG | NEGATIVE_FLAG | ZERO_FLAG);
+
+	// Check the carry bit first
+	if (*reg & 0x80) { // Check if the leftmost bit is 1
+		proc_status |= CARRY_FLAG;
+	}
+
+	// Shift left and then fill last bit
+	*reg <<= 1;
+
+	// Set last bit to carry bit
+	if (proc_status & CARRY_FLAG) { // Set last bit to 1
+		*reg |= 0x01;
+	}
+	else { // Set last bit to 0
+		*reg &= 0xFE;
+	}
+
+	if (*reg & 0x80) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	if (*reg == 0x00) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 + + + - - -
+*/
 int NES_Cpu::ROR() {
+	// Set up the data
+	unsigned char *reg;
+	if (use_accumulator) {
+		reg = &accumulator;
+	}
+	else {
+		reg = &memory[target_address];
+	}
+
+	proc_status &= ~(CARRY_FLAG | NEGATIVE_FLAG | ZERO_FLAG);
+
+	// Check the carry bit first
+	if (*reg & 0x01) { // Check if the rightmost bit is 1
+		proc_status |= CARRY_FLAG;
+	}
+
+	// Shift right and then fill first bit
+	*reg >>= 1;
+
+	// Set first bit to carry bit
+	if (proc_status & CARRY_FLAG) { // Set last bit to 1
+		*reg |= 0x80;
+	}
+	else { // Set first bit to 0
+		*reg &= 0x7F;
+	}
+
+	if (*reg & 0x80) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	if (*reg == 0x00) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
 
 	return 0;
 }
