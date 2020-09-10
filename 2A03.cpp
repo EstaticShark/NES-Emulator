@@ -950,77 +950,293 @@ int NES_Cpu::ROR() {
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 From stacks
+*/
 int NES_Cpu::RTI() {
 
+	// Pull back proc_status
+	sp++;
+	proc_status = memory[sp];
+
+	// Pull back program counter
+	sp+= 2;
+	pc = (memory[sp] << 8) | memory[sp - 1];
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 - - - - - -
+*/
 int NES_Cpu::RTS() {
 
+	// Pull back program counter
+	sp += 2;
+	pc = (memory[sp] << 8) | memory[sp - 1];
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 + + + - - +
+*/
 int NES_Cpu::SBC() {
 
+	// Set up the data
+	unsigned char *reg;
+	if (use_accumulator) {
+		reg = &accumulator;
+	}
+	else {
+		reg = &memory[target_address];
+	}
+
+	// Get difference
+	unsigned short diff = accumulator - *reg;
+
+	// Clear flags
+	proc_status &= ~(CARRY_FLAG | NEGATIVE_FLAG | ZERO_FLAG | OVERFLOW_FLAG);
+
+	// Check flags
+	if (diff >= 0x0100) { // Carry flag 
+		proc_status |= CARRY_FLAG;
+	}
+
+	if ((diff & 0x00FF) == 0) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
+
+	if (diff & 0x0080) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	// Explanation for signed overflow flags: http://forums.nesdev.com/viewtopic.php?t=6331
+	if (!((accumulator ^ *reg) & 0x80) && ((accumulator ^ diff) & 0x80)) { // Overflow flag, (!((AC ^ src) & 0x80) && ((AC ^ temp) & 0x80))
+		proc_status |= OVERFLOW_FLAG;
+	}
+
+	// Set accumulator to difference
+	accumulator = diff & 0x00FF;
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 - - 1 - - -
+*/
 int NES_Cpu::SEC() {
 
+	// Set carry flag
+	proc_status |= CARRY_FLAG;
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 - - - - 1 -
+*/
 int NES_Cpu::SED() {
 
+	// Set decimal flag
+	proc_status |= DECIMAL_FLAG;
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 - - - 1 - -
+*/
 int NES_Cpu::SEI() {
 
+	// Set decimal flag
+	proc_status |= DISABLE_FLAG;
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 - - - - - -
+*/
 int NES_Cpu::STA() {
 
+	// Set memory target to the accumulator
+	memory[target_address] = accumulator;
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 - - - - - -
+*/
 int NES_Cpu::STX() {
 
+	// Set memory target to the X register
+	memory[target_address] = X;
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 - - - - - -
+*/
 int NES_Cpu::STY() {
 
+	// Set memory target to the Y register
+	memory[target_address] = Y;
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 + + - - - -
+*/
 int NES_Cpu::TAX() {
 
+	// Transfer accumulator to X
+	X = accumulator;
+
+	// Clear flags
+	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG);
+
+	// Check flags
+	if (accumulator & 0x0080) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	if (accumulator == 0) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 + + - - - -
+*/
 int NES_Cpu::TAY() {
 
+	// Transfer accumulator to Y
+	Y = accumulator;
+
+	// Clear flags
+	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG);
+
+	// Clear flags
+	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG);
+
+	// Check flags
+	if (accumulator & 0x0080) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	if (accumulator == 0) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 + + - - - -
+*/
 int NES_Cpu::TSX() {
 
+	// Stores the stack pointer in X
+	X = sp;
+
+	// Clear flags
+	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG);
+
+	// Clear flags
+	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG);
+
+	// Check flags
+	if (sp & 0x0080) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	if (sp == 0) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 + + - - - -
+*/
 int NES_Cpu::TXA() {
 
+	// Transfer X to accumulator
+	accumulator = X;
+
+	// Clear flags
+	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG);
+
+	// Clear flags
+	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG);
+
+	// Check flags
+	if (accumulator & 0x0080) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	if (accumulator == 0) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 - - - - - -
+*/
 int NES_Cpu::TXS() {
 
+	// Transfer X to the stack pointer
+	sp = X;
+
 	return 0;
 }
 
+/*
+	 N Z C I D V
+	 + + - - - -
+*/
 int NES_Cpu::TYA() {
+
+	// Transfer Y to accumulator
+	accumulator = Y;
+
+	// Clear flags
+	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG);
+
+	// Clear flags
+	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG);
+
+	// Check flags
+	if (accumulator & 0x0080) { // Negative flag
+		proc_status |= NEGATIVE_FLAG;
+	}
+
+	if (accumulator == 0) { // Zero flag
+		proc_status |= ZERO_FLAG;
+	}
 
 	return 0;
 }

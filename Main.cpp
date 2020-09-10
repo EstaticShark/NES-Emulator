@@ -59,10 +59,11 @@ int main(int argc, char * argv[]) {
 	const Uint8 *keystate = SDL_GetKeyboardState(NULL);
 
 	// Get the path to the game
+	/*
 	char game_file[20];
 	printf("Enter the game's name\n");
 	cin >> game_file;
-
+	*/
 	
 
 
