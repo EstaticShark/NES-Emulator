@@ -78,13 +78,61 @@ void NES_Cpu::cycle() {
 */
 void NES_Cpu::irq() {
 
+	// Return if interrupt is on  
+	if (proc_status & DISABLE_FLAG) {
+		return;
+	}
+
+	// Push up the current program counter to the stack
+	memory[sp] = (pc >> 8) & 0x00FF;
+	memory[sp - 1] = pc & 0x00FF;
+	sp -= 2;
+
+	// Push up the current status
+	memory[sp] = proc_status;
+	sp--;
+
+	// The program counter then must jump to the instruction in $FFFF and $FFFE
+	pc = (memory[0xFFFF] << 8) | memory[0xFFFE];
+
+	
+
 }
 
 void NES_Cpu::nmi() {
 
+	// Unlike IRQ, there is nothing that can stop the execution of the NMI
+
+	// Push up the current program counter to the stack
+	memory[sp] = (pc >> 8) & 0x00FF;
+	memory[sp - 1] = pc & 0x00FF;
+	sp -= 2;
+
+	// Push up the current status
+	memory[sp] = proc_status;
+	sp--;
+
+	// The program counter then must jump to the instruction in $FFFF and $FFFE
+	pc = (memory[0xFFFB] << 8) | memory[0xFFFA];
+
 }
 
 void NES_Cpu::reset() {
+	// Clear registers and variables
+	opcode = 0x00;
+	sp = STACK_OFFSET + 0x00;
+	accumulator = 0x00;
+	X = 0x00;
+	Y = 0x00;
+	proc_status = 0x00;
+	use_accumulator = 0;
+	target_address = 0x0000;
+
+	// Clear flags
+	proc_status = 0;
+
+	// The program counter then must jump to the instruction in $FFFF and $FFFE
+	pc = (memory[0xFFFD] << 8) | memory[0xFFFC];
 
 }
 

@@ -81,6 +81,9 @@ class NES_Cpu {
 			$4018 - $401F ($0008)	- Normally deactivated APU and I/O operations
 
 			$4020 - $FFFF ($BFE0)	- Cartriges, PRG ROM/RAM, and mapper registers
+				$FFFA - $FFFB - NMI (Non-Maskable Interrupt) vector
+				$FFFC - $FFFD - RES (Reset) vector
+				$FFFE - $FFFF - IRQ (Interrupt Request) vector
 
 		*/
 		unsigned char memory[0xFFFF];
