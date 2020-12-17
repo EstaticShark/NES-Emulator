@@ -47,7 +47,7 @@ void NES_Cpu::cycle() {
 	//	int (NES_Cpu::*addr_setup)();
 	//	unsigned int cycles;
 	// }
-	instruction_entry *instruction = &instruction_table[opcode];
+	//instruction_entry *instruction = &instruction_table[opcode];
 
 	// Pointer member details in link
 	// https://docs.microsoft.com/en-us/cpp/cpp/pointer-to-member-operators-dot-star-and-star?view=vs-2019
@@ -78,7 +78,7 @@ void NES_Cpu::cycle() {
 */
 void NES_Cpu::irq() {
 
-	// Return if interrupt is on  
+	// Return if interrupt disable is on  
 	if (proc_status & DISABLE_FLAG) {
 		return;
 	}
@@ -95,8 +95,6 @@ void NES_Cpu::irq() {
 	// The program counter then must jump to the instruction in $FFFF and $FFFE
 	pc = (memory[0xFFFF] << 8) | memory[0xFFFE];
 
-	
-
 }
 
 void NES_Cpu::nmi() {
@@ -112,7 +110,7 @@ void NES_Cpu::nmi() {
 	memory[sp] = proc_status;
 	sp--;
 
-	// The program counter then must jump to the instruction in $FFFF and $FFFE
+	// The program counter then must jump to the instruction in $FFFB and $FFFA
 	pc = (memory[0xFFFB] << 8) | memory[0xFFFA];
 
 }
@@ -208,11 +206,17 @@ int NES_Cpu::AND() {
 */
 int NES_Cpu::ASL() {
 
+	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG | CARRY_FLAG);
+
 	if (use_accumulator) {
 		// Arithmetic shift left the accumulator
-		accumulator <<= 1;
 
-		proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG | CARRY_FLAG);
+		// Carry flag is set to original bit 7
+		if (accumulator & 0x0080) { // Carry flag 
+			proc_status |= CARRY_FLAG;
+		}
+
+		accumulator <<= 1;
 
 		// Check flags
 		if (accumulator & 0x0080) { // Negative flag
@@ -222,17 +226,17 @@ int NES_Cpu::ASL() {
 		if ((accumulator & 0x00FF) == 0) { // Zero flag
 			proc_status |= ZERO_FLAG;
 		}
-
-		if (accumulator >= 0x0100) { // Carry flag 
-			proc_status |= CARRY_FLAG;
-		}
 	}
 	else {
 		// Arithmetic shift left the data at the target address
 		unsigned short shifted_result = memory[target_address] << 1;
-		memory[target_address] = shifted_result;
 
-		proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG | CARRY_FLAG);
+		// Carry flag is set to original bit 7
+		if (memory[target_address] & 0x0080) { // Carry flag 
+			proc_status |= CARRY_FLAG;
+		}
+
+		memory[target_address] = shifted_result;
 
 		// Check flags
 		if (shifted_result & 0x0080) { // Negative flag
@@ -241,10 +245,6 @@ int NES_Cpu::ASL() {
 
 		if ((shifted_result & 0x00FF) == 0) { // Zero flag
 			proc_status |= ZERO_FLAG;
-		}
-
-		if (shifted_result >= 0x0100) { // Carry flag 
-			proc_status |= CARRY_FLAG;
 		}
 	}
 
@@ -783,33 +783,33 @@ int NES_Cpu::LDY() {
 */
 int NES_Cpu::LSR() {
 
+	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG | CARRY_FLAG);
+
 	if (use_accumulator) {
 		// Arithmetic shift right the accumulator
-		accumulator >>= 1;
 
-		proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG | CARRY_FLAG);
+		if (accumulator & 0x0001) { // Carry flag 
+			proc_status |= CARRY_FLAG;
+		}
+
+		accumulator >>= 1;
 
 		if ((accumulator & 0x00FF) == 0) { // Zero flag
 			proc_status |= ZERO_FLAG;
-		}
-
-		if (accumulator >= 0x0100) { // Carry flag 
-			proc_status |= CARRY_FLAG;
 		}
 	}
 	else {
 		// Arithmetic shift right the data at the target address
 		unsigned short shifted_result = memory[target_address] >> 1;
-		memory[target_address] = shifted_result;
 
-		proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG | CARRY_FLAG);
+		if (memory[target_address] & 0x0001) { // Carry flag 
+			proc_status |= CARRY_FLAG;
+		}
+
+		memory[target_address] = shifted_result;
 
 		if ((shifted_result & 0x00FF) == 0) { // Zero flag
 			proc_status |= ZERO_FLAG;
-		}
-
-		if (shifted_result >= 0x0100) { // Carry flag 
-			proc_status |= CARRY_FLAG;
 		}
 	}
 
