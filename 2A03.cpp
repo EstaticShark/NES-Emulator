@@ -3,6 +3,8 @@
 #include <string.h>
 #include "NES.h"
 
+int trace = 1;
+
 // Initialization
 NES_Cpu::NES_Cpu() {
 	// Initialize values
@@ -40,6 +42,10 @@ void NES_Cpu::cycle() {
 	// Get opcode
 	opcode = memory[pc];
 
+	if (trace){
+		printf("Opcode: %s\n", this->instruction_table[opcode].instr_name);
+	}
+
 	// Retrieve the instruction details, instruction_entry in format:
 	// {
 	//	std::string instr_name;
@@ -56,11 +62,67 @@ void NES_Cpu::cycle() {
 	// Flag setup
 	use_accumulator = 0;
 
+	// Increment program counter
+	pc++;
+
+
+	if (trace) {
+		printf("Pre-setup\n");
+		printf("\tAccumulator: %d\nX Register: %d\nY Register: %d\n", accumulator, X, Y);
+
+		char bits[8];
+		char proc = proc_status;
+		int i = 0;
+		while (i < 8){
+			bits[i] = proc % 2;
+			proc /= 2;
+			i++;
+		}
+
+		//(N,V,-,B,D,I,Z,C)
+		printf("\tN: %d,V: %d,-: %d,B: %d,D: %d,I: %d,Z: %d,C: %d", bits[7], bits[6], bits[5], bits[4], bits[3], bits[2], bits[1], bits[0]);
+	}
+
+
 	// Setup addressing mode variables
 	(this->*instruction_table[opcode].addr_setup)();
 
+	if(trace){
+		printf("Post-setup\n");
+		printf("\tAccumulator: %d\nX Register: %d\nY Register: %d\n", accumulator, X, Y);
+
+		char bits[8];
+		char proc = proc_status;
+		int i = 0;
+		while (i < 8){
+			bits[i] = proc % 2;
+			proc /= 2;
+			i++;
+		}
+
+		//(N,V,-,B,D,I,Z,C)
+		printf("\tN: %d,V: %d,-: %d,B: %d,D: %d,I: %d,Z: %d,C: %d", bits[7], bits[6], bits[5], bits[4], bits[3], bits[2], bits[1], bits[0]);
+	}
+
 	// Run the operation for the appropriate amount of cycles
 	(this->*instruction_table[opcode].operation)();
+
+	if(trace){
+		printf("Post-operation\n");
+		printf("\tAccumulator: %d\nX Register: %d\nY Register: %d\n", accumulator, X, Y);
+
+		char bits[8];
+		char proc = proc_status;
+		int i = 0;
+		while (i < 8){
+			bits[i] = proc % 2;
+			proc /= 2;
+			i++;
+		}
+
+		//(N,V,-,B,D,I,Z,C)
+		printf("\tN: %d,V: %d,-: %d,B: %d,D: %d,I: %d,Z: %d,C: %d", bits[7], bits[6], bits[5], bits[4], bits[3], bits[2], bits[1], bits[0]);
+	}
 
 	/*
 		Note on cycle counting. I may count the cycles through timing the time needed for the operation and then sleeping
@@ -68,8 +130,6 @@ void NES_Cpu::cycle() {
 		the instruction
 	*/
 
-	// Increment program counter
-	pc++;
 }
 
 
@@ -1312,7 +1372,7 @@ int NES_Cpu::ACC() {
 int NES_Cpu::ABS() {
 
 	// Read little endian byte address
-	target_address = memory[pc + 1] | memory[pc + 2] << 8;
+	target_address = memory[pc] | memory[pc + 1] << 8;
 
 	// Update to show that we have made two accesses
 	pc += 2;
@@ -1323,7 +1383,7 @@ int NES_Cpu::ABS() {
 int NES_Cpu::ABS_X() {
 
 	// Read little endian byte address and add X
-	target_address = memory[pc + 1] | memory[pc + 2] << 8;
+	target_address = memory[pc] | memory[pc + 1] << 8;
 	target_address += X;
 
 	// Update to show that we have made two accesses
@@ -1335,7 +1395,7 @@ int NES_Cpu::ABS_X() {
 int NES_Cpu::ABS_Y() {
 
 	// Read little endian byte address and add Y
-	target_address = memory[pc + 1] | memory[pc + 2] << 8;
+	target_address = memory[pc] | memory[pc + 1] << 8;
 	target_address += Y;
 
 	// Update to show that we have made two accesses
@@ -1347,7 +1407,7 @@ int NES_Cpu::ABS_Y() {
 int NES_Cpu::IMM() {
 	
 	// Data is in next byte
-	target_address = pc + 1;
+	target_address = pc;
 
 	// Update to show that we have made an additional access
 	pc += 1;
@@ -1365,7 +1425,7 @@ int NES_Cpu::IMP() {
 int NES_Cpu::IND() {
 
 	// Set target address to the address in the next two bytes
-	unsigned short indirect_address = memory[pc + 2] << 8 | memory[pc + 1];
+	unsigned short indirect_address = memory[pc + 1] << 8 | memory[pc];
 	target_address = memory[indirect_address + 1] << 8 | memory[indirect_address];
 
 	// Update to show that we have made two accesses
@@ -1377,7 +1437,7 @@ int NES_Cpu::IND() {
 int NES_Cpu::IND_X() {
 
 	// Add immediate and X for the indirect address
-	unsigned short indirect_address = memory[pc + 1] + X;
+	unsigned short indirect_address = memory[pc] + X;
 	target_address = memory[indirect_address + 1] << 8 | memory[indirect_address];
 
 	// Update to show that we have made an additional access
@@ -1389,7 +1449,7 @@ int NES_Cpu::IND_X() {
 int NES_Cpu::IND_Y() {
 
 	// Add immediate's data and Y for the indirect address
-	unsigned short indirect_address = memory[pc + 1];
+	unsigned short indirect_address = memory[pc];
 	target_address = memory[indirect_address + 1] << 8 | memory[indirect_address];
 	target_address += Y;
 
@@ -1402,7 +1462,7 @@ int NES_Cpu::IND_Y() {
 int NES_Cpu::REL() {
 
 	// Target address is the pc plus the value after it
-	target_address = pc + memory[pc + 1];
+	target_address = pc + memory[pc];
 
 	// Update to show that we have made an additional access
 	pc += 1;
@@ -1413,7 +1473,7 @@ int NES_Cpu::REL() {
 int NES_Cpu::ZPG() {
 
 	// Target address is in the next byte
-	target_address = memory[pc + 1];
+	target_address = memory[pc];
 
 	// Update to show that we have made an additional access
 	pc += 1;
@@ -1424,7 +1484,7 @@ int NES_Cpu::ZPG() {
 int NES_Cpu::ZPG_X() {
 
 	// Target address is the first byte of the sum of the X register and the next byte
-	target_address = (memory[pc + 1] + X) & 0x00FF;
+	target_address = (memory[pc] + X) & 0x00FF;
 
 	// Update to show that we have made an additional access
 	pc += 1;
@@ -1435,7 +1495,7 @@ int NES_Cpu::ZPG_X() {
 int NES_Cpu::ZPG_Y() {
 
 	// Target address is the first byte of the sum of the Y register and the next byte
-	target_address = (memory[pc + 1] + Y) & 0x00FF;
+	target_address = (memory[pc] + Y) & 0x00FF;
 
 	// Update to show that we have made an additional access
 	pc += 1;
