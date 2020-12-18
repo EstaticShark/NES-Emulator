@@ -32,6 +32,16 @@
 #define OVERFLOW_FLAG	64
 #define NEGATIVE_FLAG	128
 
+// Formatting for .nes files
+#define PRG_ROM			4
+#define CHR_ROM			5
+#define FLG_6			6
+#define FLG_7			7
+#define FLG_8			8
+#define FLG_9			9
+#define FLG_10			10
+
+
 class NES_Cpu {
 	private:
 		/*
@@ -159,6 +169,9 @@ class NES_Cpu {
 			{ "CPX", &CPX, &IMM, 2 },{ "SBC", &SBC, &IND_X, 6 },{ "???", &NOP, &IMP, 2 },{ "???", &ILL, &IMP, 8 },{ "CPX", &CPX, &ZPG, 3 },{ "SBC", &SBC, &ZPG, 3 },{ "INC", &INC, &ZPG, 5 },{ "???", &ILL, &IMP, 5 },{ "INX", &INX, &IMP, 2 },{ "SBC", &SBC, &IMM, 2 },{ "NOP", &NOP, &IMP, 2 },{ "???", &SBC, &IMP, 2 },{ "CPX", &CPX, &ABS, 4 },{ "SBC", &SBC, &ABS, 4 },{ "INC", &INC, &ABS, 6 },{ "???", &ILL, &IMP, 6 },
 			{ "BEQ", &BEQ, &REL, 2 },{ "SBC", &SBC, &IND_Y, 5 },{ "???", &ILL, &IMP, 2 },{ "???", &ILL, &IMP, 8 },{ "???", &NOP, &IMP, 4 },{ "SBC", &SBC, &ZPG_X, 4 },{ "INC", &INC, &ZPG_X, 6 },{ "???", &ILL, &IMP, 6 },{ "SED", &SED, &IMP, 2 },{ "SBC", &SBC, &ABS_Y, 4 },{ "NOP", &NOP, &IMP, 2 },{ "???", &ILL, &IMP, 7 },{ "???", &NOP, &IMP, 4 },{ "SBC", &SBC, &ABS_X, 4 },{ "INC", &INC, &ABS_X, 7 },{ "???", &ILL, &IMP, 7 }
 		};
+
+		// Setup functions
+		int load_game_to_mem(uint8_t* reading_space, int size);
 
 		// Logging function
 		void log();

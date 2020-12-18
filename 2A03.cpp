@@ -3,6 +3,7 @@
 #include <string.h>
 #include <iomanip>
 #include "NES.h"
+#include "util.h"
 
 // Set to 1 for logging
 int trace = 1;
@@ -10,32 +11,23 @@ int trace = 1;
 // Special NES keyword to detect .nes files: "N", "E", "S", (rightarrow)
 const int MAGIC[4] = {78, 69, 83, 26};
 
-// Debugging functions
+// Class logging functions
+void NES_Cpu::log() {
+	printf("\tAccumulator: %d\nX Register: %d\nY Register: %d\n", accumulator, X, Y);
 
-int print_hex(uint8_t* data, int size) {
-
-	if (size % 2 != 0) {
-		printf("Irregular amount of bytes read");
-		return 1;
+	char bits[8];
+	char proc = proc_status;
+	int i = 0;
+	while (i < 8){
+		bits[i] = proc % 2;
+		proc /= 2;
+		i++;
 	}
 
-	for (int j = 0; j < 16; j++) {
-		std::cout << std::hex << std::setfill('0') << std::setw(2) << j << " ";
-	}
-
-	std::cout << "\n";
-
-	// Printing in little endian order, increasing sig. from x to x + 1
-	for (int i = 0; i < size; i ++) {
-		std::cout << std::hex << std::setfill('0') << std::setw(2) << (int)data[i] << " ";
-		if (i % 16 == 15) {
-			printf("\n");
-		}
-	}
-
-	return 0;
-	
+	//(N,V,-,B,D,I,Z,C)
+	printf("\tN: %d,V: %d,-: %d,B: %d,D: %d,I: %d,Z: %d,C: %d", bits[7], bits[6], bits[5], bits[4], bits[3], bits[2], bits[1], bits[0]);
 }
+
 
 // Initialization
 NES_Cpu::NES_Cpu() {
@@ -56,17 +48,133 @@ NES_Cpu::NES_Cpu() {
 
 // Destruction
 NES_Cpu::~NES_Cpu() {
-
+	
 }
 
-/*
-	typedef struct instruction_entry {
-			std::string instr_name;
-			int (NES_Cpu::*operation)();
-			int (NES_Cpu::*addr_setup)();
-			unsigned int cycles;
-		} instruction_entry;
-*/
+
+int NES_Cpu::load_game_to_mem(uint8_t* buffer, int size) {
+	/*
+		0-3: Constant $4E $45 $53 $1A ("NES" followed by MS-DOS end-of-file)
+		4: Size of PRG ROM in 16 KB units
+		5: Size of CHR ROM in 8 KB units (Value 0 means the board uses CHR RAM)
+		6: Flags 6 - Mapper, mirroring, battery, trainer
+		7: Flags 7 - Mapper, VS/Playchoice, NES 2.0
+		8: Flags 8 - PRG-RAM size (rarely used extension)
+		9: Flags 9 - TV system (rarely used extension)
+		10: Flags 10 - TV system, PRG-RAM presence (unofficial, rarely used extension)
+		11-15: Unused padding (should be filled with zero, but some rippers put their name across bytes 7-15)
+	*/
+
+	// Make sure that that the file is in the .nes format
+	for (int b = 0; b < 4; b++){
+		if (MAGIC[b] != buffer[b]) {
+			printf("File is not in proper .nes format, check ROM hex for MAGIC keyword\n");
+			return 1;
+		}
+	}
+
+	// Retrieving metadata
+	int prg_rom = (int) buffer[PRG_ROM];
+	int chr_rom = (int) buffer[CHR_ROM];
+	uint8_t flag_set_6 = (uint8_t) buffer[FLG_6];
+	uint8_t flag_set_7 = (uint8_t) buffer[FLG_7];
+	uint8_t flag_set_8 = (uint8_t) buffer[FLG_8];
+	uint8_t flag_set_9 = (uint8_t) buffer[FLG_9];
+	uint8_t flag_set_10 = (uint8_t) buffer[FLG_10];
+
+	//////// TODO: Flag set 6 implementation ////////
+
+	/*
+		TODO: Mirroring for PPU
+		0: horizontal (vertical arrangement) (CIRAM A10 = PPU A11)
+        1: vertical (horizontal arrangement) (CIRAM A10 = PPU A10)
+	*/
+	int mirror = flag_set_6 & 0b1;
+
+	/*
+		TODO: Battery backed PRG-RAM
+		1: Cartridge contains battery-backed PRG RAM ($6000-7FFF) or other persistent memory
+	*/
+	int bb_prg_ram = flag_set_6 & 0b10;
+
+
+	/*
+		TODO: Trainer data
+		1: 512-byte trainer at $7000-$71FF (stored before PRG data)
+	*/
+	int trainer_data = flag_set_6 & 0b100;
+
+
+	/*
+		TODO: Ignore mirroring control
+		1: Ignore mirroring control or above mirroring bit; instead provide four-screen VRAM
+	*/
+	int trainer_data = flag_set_6 & 0b1000;
+
+	
+	/*
+		TODO: Lower nybble of mapper number
+	*/
+	uint8_t lower_nybble = (flag_set_6 & 0x11110000) >> 4;
+
+
+	//////// TODO: Flag set 7 implementation ////////
+
+	/*
+		TODO: VS Unisystem
+	*/
+	int vs_unisystem = flag_set_7 & 0b1;
+
+	/*
+		TODO: PlayChoice-10
+		PlayChoice-10 (8KB of Hint Screen data stored after CHR data)
+	*/
+	int playchoice = flag_set_7 & 0b10;
+
+
+	/*
+		TODO: NES 2.0 confirmation flag
+		If equal to 2, flags 8-15 are in NES 2.0 format
+	*/
+	int nes_2 = flag_set_7 & 0b1100;
+	bool use_nes_2 = false;
+
+	if ((nes_2 >> 2) == 0b10) {
+		use_nes_2 = true;
+	}
+
+	/*
+		TODO: Upper nybble of mapper number
+	*/
+	uint8_t upper_nybble = (flag_set_7 & 0x11110000) >> 4;
+	
+	//////// TODO: Flag set 8 implementation ////////
+
+	/*
+		TODO: PRG RAM size
+		Size of PRG RAM in 8 KB units (Value 0 infers 8 KB for compatibility)
+	*/
+	uint8_t prg_ram_size = flag_set_8;
+
+	//////// TODO: Flag set 9 implementation ////////
+
+	/*
+		TODO: TV system
+		TV system (0: NTSC; 1: PAL)
+	*/
+	int tv_setting = flag_set_9 & 0b1;
+
+	/*
+		TODO: Reserved, set to zero
+	*/
+	int reserved = flag_set_9 & 0b11111110;
+
+	//////// TODO: Flag set 10 implementation ////////
+
+
+
+	return 0;
+}
 
 int NES_Cpu::load(const char* game) {
 
@@ -84,60 +192,38 @@ int NES_Cpu::load(const char* game) {
 	int size = ftell(game_file);
 	fseek(game_file, 0, SEEK_SET);
 
-	uint8_t *reading_space = (uint8_t *) malloc(sizeof(uint8_t) * size);
-	int bytes_read = fread(reading_space, 1, size, game_file);
+	uint8_t *buffer = (uint8_t *) malloc(sizeof(uint8_t) * size);
+	int bytes_read = fread(buffer, 1, size, game_file);
 	
-	// Close the game file
+	// Close the file
 	fclose(game_file);
 
 	// Check bytes read
 	if (bytes_read != size) {
 		printf("Reading error, expected to read %d bytes, but instead read %d\n", size, bytes_read);
-		free(reading_space);
+		free(buffer);
 		return 1;
 	}
 
 	// Print contents of the game file
 	if (trace) {
 		printf("Bytes Read: %d\nSize: %d\n", bytes_read, size);
-		//print_hex(reading_space, size);
-		printf("\n");
+		//print_hex(buffer, size);
 	}
 
-	// Make sure that that the file is in the .nes format
-	for (int b = 0; b < 4; b++){
-		if (MAGIC[b] != reading_space[b]) {
-			printf("File is not in proper .nes format, check ROM hex for MAGIC keyword\n");
-			free(reading_space);
-			return 1;
-		}
+	// Map the bytes to the correct locations in memory
+	if (load_game_to_mem(buffer, size)) {
+		printf("Error while loading ROM, please report the bug or try a different ROM");
+		free(buffer);
+		return 1;
 	}
-
-
-	// TODO:Map the bytes to the correct locations in memory
-
 
 
 	printf("Game loaded\n");
 
+	free(buffer);
+
 	return 0;
-}
-
-
-void NES_Cpu::log() {
-	printf("\tAccumulator: %d\nX Register: %d\nY Register: %d\n", accumulator, X, Y);
-
-	char bits[8];
-	char proc = proc_status;
-	int i = 0;
-	while (i < 8){
-		bits[i] = proc % 2;
-		proc /= 2;
-		i++;
-	}
-
-	//(N,V,-,B,D,I,Z,C)
-	printf("\tN: %d,V: %d,-: %d,B: %d,D: %d,I: %d,Z: %d,C: %d", bits[7], bits[6], bits[5], bits[4], bits[3], bits[2], bits[1], bits[0]);
 }
 
 // Emulation cycling
