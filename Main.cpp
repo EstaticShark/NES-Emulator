@@ -14,65 +14,73 @@ using namespace std;
 // The CPU
 NES_Cpu cpu;
 
+int load(NES_Cpu* cpu, const char* game) {
+
+	printf("Game: %s\n", game);
+
+	// Open the game file and read it into our memory
+	FILE *game_file = fopen(game, "rb");
+	if (game_file == NULL) {
+		printf("Failed to open game file\n");
+		return 1;
+	}
+
+	// Find the file size
+	fseek(game_file, 0, SEEK_END);
+	int size = ftell(game_file);
+	fseek(game_file, 0, SEEK_SET);
+
+	// Reserve space to work on file
+	uint8_t *buffer = (uint8_t *) malloc(sizeof(uint8_t) * size);
+	int bytes_read = fread(buffer, 1, size, game_file);
+	
+	// Close the file
+	fclose(game_file);
+
+	// Check bytes read
+	if (bytes_read != size) {
+		printf("Reading error, expected to read %d bytes, but instead read %d\n", size, bytes_read);
+		free(buffer);
+		return 1;
+	}
+
+	// Print contents of the game file
+	if (trace) {
+		printf("Bytes Read: %d\nSize: %d\n", bytes_read, size);
+		//print_hex(buffer, size);
+	}
+
+	// Map the bytes to the correct locations in memory
+	int bytes_mapped = cpu->load_cpu(buffer, size);
+	if (bytes_mapped <= 16) {
+		printf("Error while loading ROM to the CPU, please report the bug or try a different ROM");
+		free(buffer);
+		return 1;
+	}
+
+	if (trace) {
+		printf("CPU loading used the first %d byte(s) of ROM");
+	}
+
+
+	// TODO: Learn about PPU and initialize it here, continuing with bytes_mapped
+
+
+	printf("Game loaded\n");
+
+	free(buffer);
+
+	return 0;
+}
+
 int main(int argc, char * argv[]) {
 
-	/*
-	// Initialize SDL
-	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
-		printf("SDL_Init failed to intialize.\n");
-		return 1;
-	}
-
-	// Create window
-	SDL_Window *window = SDL_CreateWindow("Martin's NES Emulator", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH*WINDOW_SCALE, WINDOW_HEIGHT*WINDOW_SCALE, 0);
-	if (window == NULL) { //Window has failed to create
-		printf("SDL_CreateWindow failed to create a window.\n");
-		SDL_Quit();
-		return 1;
-	}
-
-	// Setup render
-	Uint32 render_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
-	SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, render_flags);
-	if (renderer == NULL) {
-		printf("SDL_CreateRenderer failed to create a renderer.\n");
-		SDL_DestroyWindow(window);
-		SDL_Quit();
-		return 1;
-	}
-
-	// Black out the window
-	//SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-	//SDL_RenderClear(renderer);
-	//SDL_RenderPresent(renderer);
-	//SDL_SetRenderDrawColor(renderer, RED, BLUE, GREEN, 255);
-
-	// Initialize the keyboard
-	const Uint8 *keystate = SDL_GetKeyboardState(NULL);
-
-	// Get the path to the game
-	char game_file[20];
-	printf("Enter the game's name\n");
-	cin >> game_file;
-	
-	
-
-
-
-	SDL_DestroyRenderer(renderer);
-	SDL_DestroyWindow(window);
-	SDL_Quit();
-
-	printf("SDL exit\n");
-	*/
-
-
 	// Get the path to the game
 	char game_file[20];
 	printf("Enter the game's name\n");
 	cin >> game_file;
 
-	int load_result = cpu.load(game_file);
+	int load_result = load(&cpu, game_file);
 
 	return 0;
 }

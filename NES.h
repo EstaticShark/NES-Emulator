@@ -41,6 +41,13 @@
 #define FLG_9			9
 #define FLG_10			10
 
+// Common sizes
+#define PRG_ROM_UNIT	16384
+#define CHR_ROM_UNIT	8192
+
+
+// Set to 1 for logging
+int trace = 1;
 
 class NES_Cpu {
 	private:
@@ -170,12 +177,6 @@ class NES_Cpu {
 			{ "BEQ", &BEQ, &REL, 2 },{ "SBC", &SBC, &IND_Y, 5 },{ "???", &ILL, &IMP, 2 },{ "???", &ILL, &IMP, 8 },{ "???", &NOP, &IMP, 4 },{ "SBC", &SBC, &ZPG_X, 4 },{ "INC", &INC, &ZPG_X, 6 },{ "???", &ILL, &IMP, 6 },{ "SED", &SED, &IMP, 2 },{ "SBC", &SBC, &ABS_Y, 4 },{ "NOP", &NOP, &IMP, 2 },{ "???", &ILL, &IMP, 7 },{ "???", &NOP, &IMP, 4 },{ "SBC", &SBC, &ABS_X, 4 },{ "INC", &INC, &ABS_X, 7 },{ "???", &ILL, &IMP, 7 }
 		};
 
-		// Setup functions
-		int load_game_to_mem(uint8_t* reading_space, int size);
-
-		// Logging function
-		void log();
-
 		// All instruction functions
 		int ADC();
 		int AND();
@@ -259,8 +260,8 @@ class NES_Cpu {
 		NES_Cpu();
 		~NES_Cpu();
 
-		// Load the game file
-		int load(const char *game);
+		// Setup functions
+		int load_cpu(uint8_t* reading_space, int size);
 
 		// Interrupts
 		void irq();										// Maskable Interrupt. Ignorable in certain cases
@@ -269,4 +270,7 @@ class NES_Cpu {
 
 		// Emulation
 		void cycle();									// Run a cycle of the emulation
+
+		// Debugging function
+		void log();
 };

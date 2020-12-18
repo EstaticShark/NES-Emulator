@@ -5,8 +5,6 @@
 #include "NES.h"
 #include "util.h"
 
-// Set to 1 for logging
-int trace = 1;
 
 // Special NES keyword to detect .nes files: "N", "E", "S", (rightarrow)
 const int MAGIC[4] = {78, 69, 83, 26};
@@ -52,7 +50,7 @@ NES_Cpu::~NES_Cpu() {
 }
 
 
-int NES_Cpu::load_game_to_mem(uint8_t* buffer, int size) {
+int NES_Cpu::load_cpu(uint8_t* buffer, int size) {
 	/*
 		0-3: Constant $4E $45 $53 $1A ("NES" followed by MS-DOS end-of-file)
 		4: Size of PRG ROM in 16 KB units
@@ -91,6 +89,7 @@ int NES_Cpu::load_game_to_mem(uint8_t* buffer, int size) {
 	*/
 	int mirror = flag_set_6 & 0b1;
 
+
 	/*
 		TODO: Battery backed PRG-RAM
 		1: Cartridge contains battery-backed PRG RAM ($6000-7FFF) or other persistent memory
@@ -109,7 +108,7 @@ int NES_Cpu::load_game_to_mem(uint8_t* buffer, int size) {
 		TODO: Ignore mirroring control
 		1: Ignore mirroring control or above mirroring bit; instead provide four-screen VRAM
 	*/
-	int trainer_data = flag_set_6 & 0b1000;
+	int ignore_mirror = flag_set_6 & 0b1000;
 
 	
 	/*
@@ -130,7 +129,6 @@ int NES_Cpu::load_game_to_mem(uint8_t* buffer, int size) {
 		PlayChoice-10 (8KB of Hint Screen data stored after CHR data)
 	*/
 	int playchoice = flag_set_7 & 0b10;
-
 
 	/*
 		TODO: NES 2.0 confirmation flag
@@ -164,67 +162,25 @@ int NES_Cpu::load_game_to_mem(uint8_t* buffer, int size) {
 	*/
 	int tv_setting = flag_set_9 & 0b1;
 
-	/*
-		TODO: Reserved, set to zero
-	*/
-	int reserved = flag_set_9 & 0b11111110;
 
-	//////// TODO: Flag set 10 implementation ////////
+	//////// ROM DATA ////////
 
+	// The byte that is next to be read in the ROM
+	int rom_position = 16;
 
+	// If the trainer data flag is up, then we must copy 512 bytes of trainer data to 0x7000
+	if (trainer_data) {
+		memcpy(&(this->memory)[0x7000], &buffer[rom_position], 512);
+		rom_position += 512;
+	}
 
-	return 0;
+	// Copy PRG ROM
+	memcpy(&(this->memory)[0x8000], &buffer[rom_position], PRG_ROM_UNIT * prg_rom);
+	rom_position += PRG_ROM_UNIT * prg_rom;
+
+	return rom_position;
 }
 
-int NES_Cpu::load(const char* game) {
-
-	printf("Game: %s\n", game);
-
-	// Open the game file and read it into our memory
-	FILE *game_file = fopen(game, "rb");
-	if (game_file == NULL) {
-		printf("Failed to open game file\n");
-		return 1;
-	}
-
-	// Find the file size
-	fseek(game_file, 0, SEEK_END);
-	int size = ftell(game_file);
-	fseek(game_file, 0, SEEK_SET);
-
-	uint8_t *buffer = (uint8_t *) malloc(sizeof(uint8_t) * size);
-	int bytes_read = fread(buffer, 1, size, game_file);
-	
-	// Close the file
-	fclose(game_file);
-
-	// Check bytes read
-	if (bytes_read != size) {
-		printf("Reading error, expected to read %d bytes, but instead read %d\n", size, bytes_read);
-		free(buffer);
-		return 1;
-	}
-
-	// Print contents of the game file
-	if (trace) {
-		printf("Bytes Read: %d\nSize: %d\n", bytes_read, size);
-		//print_hex(buffer, size);
-	}
-
-	// Map the bytes to the correct locations in memory
-	if (load_game_to_mem(buffer, size)) {
-		printf("Error while loading ROM, please report the bug or try a different ROM");
-		free(buffer);
-		return 1;
-	}
-
-
-	printf("Game loaded\n");
-
-	free(buffer);
-
-	return 0;
-}
 
 // Emulation cycling
 void NES_Cpu::cycle() {
