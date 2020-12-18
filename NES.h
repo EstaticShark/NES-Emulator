@@ -86,15 +86,15 @@ class NES_Cpu {
 				$FFFE - $FFFF - IRQ (Interrupt Request) vector
 
 		*/
-		unsigned char memory[0xFFFF];
+		uint8_t memory[0xFFFF];
 
-		unsigned short pc;								// Program counter
-		unsigned char opcode;							// Current opcode
-		unsigned char sp;								// Stack pointer
-		unsigned char accumulator;						// Accumulator
-		unsigned char X;								// X register
-		unsigned char Y;								// Y register
-		unsigned char proc_status;						// Process Status - (N,V,-,B,D,I,Z,C)
+		uint16_t pc;								// Program counter
+		uint8_t opcode;								// Current opcode
+		uint8_t sp;									// Stack pointer
+		uint8_t accumulator;						// Accumulator
+		uint8_t X;									// X register
+		uint8_t Y;									// Y register
+		uint8_t proc_status;						// Process Status - (N,V,-,B,D,I,Z,C)
 
 		/*
 			Adressing Mode Variables
@@ -103,8 +103,8 @@ class NES_Cpu {
 
 			We need a flag for the ACC addressing mode since ACC is not a lone addressing mode like IMP is
 		*/
-		unsigned char use_accumulator;					// Flag to use accumulator
-		unsigned short target_address;					// Stores target address for addressing modes
+		uint8_t use_accumulator;					// Flag to use accumulator
+		uint16_t target_address;					// Stores target address for addressing modes
 
 
 		/*

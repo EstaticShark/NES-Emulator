@@ -154,12 +154,12 @@ void NES_Cpu::irq() {
 	}
 
 	// Push up the current program counter to the stack
-	memory[sp] = (pc >> 8) & 0x00FF;
-	memory[sp - 1] = pc & 0x00FF;
+	memory[STACK_OFFSET + sp] = (pc >> 8) & 0x00FF;
+	memory[STACK_OFFSET + sp - 1] = pc & 0x00FF;
 	sp -= 2;
 
 	// Push up the current status
-	memory[sp] = proc_status;
+	memory[STACK_OFFSET + sp] = proc_status;
 	sp--;
 
 	// The program counter then must jump to the instruction in $FFFF and $FFFE
@@ -172,12 +172,12 @@ void NES_Cpu::nmi() {
 	// Unlike IRQ, there is nothing that can stop the execution of the NMI
 
 	// Push up the current program counter to the stack
-	memory[sp] = (pc >> 8) & 0x00FF;
-	memory[sp - 1] = pc & 0x00FF;
+	memory[STACK_OFFSET + sp] = (pc >> 8) & 0x00FF;
+	memory[STACK_OFFSET + sp - 1] = pc & 0x00FF;
 	sp -= 2;
 
 	// Push up the current status
-	memory[sp] = proc_status;
+	memory[STACK_OFFSET + sp] = proc_status;
 	sp--;
 
 	// The program counter then must jump to the instruction in $FFFB and $FFFA
@@ -188,7 +188,7 @@ void NES_Cpu::nmi() {
 void NES_Cpu::reset() {
 	// Clear registers and variables
 	opcode = 0x00;
-	sp = STACK_OFFSET + 0x00;
+	sp = 0x00;
 	accumulator = 0x00;
 	X = 0x00;
 	Y = 0x00;
@@ -218,7 +218,7 @@ void NES_Cpu::reset() {
 int NES_Cpu::ADC() {
 
 	// Add the accumulator with the data at the target address and the carry bit
-	unsigned short sum = accumulator + memory[target_address] + ((proc_status & CARRY_FLAG) ? 1 : 0);
+	uint16_t sum = accumulator + memory[target_address] + ((proc_status & CARRY_FLAG) ? 1 : 0);
 
 	proc_status &= ~(CARRY_FLAG | ZERO_FLAG | NEGATIVE_FLAG | OVERFLOW_FLAG);
 	
@@ -299,7 +299,7 @@ int NES_Cpu::ASL() {
 	}
 	else {
 		// Arithmetic shift left the data at the target address
-		unsigned short shifted_result = memory[target_address] << 1;
+		uint16_t shifted_result = memory[target_address] << 1;
 
 		// Carry flag is set to original bit 7
 		if (memory[target_address] & 0x0080) { // Carry flag 
@@ -370,7 +370,7 @@ int NES_Cpu::BEQ() {
 int NES_Cpu::BIT() {
 
 	// Bitwise AND with accumulator and data, the result is not saved and is only used to set flags
-	unsigned short result = accumulator & memory[target_address];
+	uint16_t result = accumulator & memory[target_address];
 
 	proc_status &= ~(ZERO_FLAG | NEGATIVE_FLAG | OVERFLOW_FLAG);
 
@@ -442,12 +442,12 @@ int NES_Cpu::BRK() {
 	proc_status |= DISABLE_FLAG;
 
 	// Push the 2 byte program counter into the stack, remember to do it in little endian
-	memory[sp] = (pc >> 8) & 0x00FF;
-	memory[sp - 1] = pc & 0x00FF;
+	memory[STACK_OFFSET + sp] = (pc >> 8) & 0x00FF;
+	memory[STACK_OFFSET + sp - 1] = pc & 0x00FF;
 	sp -= 2;
 
 	// Push the proc_status with the break bit set into the stack
-	memory[sp] = proc_status | BREAK_FLAG;
+	memory[STACK_OFFSET + sp] = proc_status | BREAK_FLAG;
 	sp--;
 
 	// The program counter then must jump to the instruction in $FFFF and $FFFE
@@ -545,8 +545,8 @@ int NES_Cpu::CLV() {
      + + + - - -
 */
 int NES_Cpu::CMP() {
-	unsigned char data = memory[target_address];
-	unsigned short diff = accumulator - data;
+	uint8_t data = memory[target_address];
+	uint16_t diff = accumulator - data;
 
 	proc_status &= ~(NEGATIVE_FLAG | CARRY_FLAG | ZERO_FLAG);
 
@@ -571,8 +571,8 @@ int NES_Cpu::CMP() {
 */
 int NES_Cpu::CPX() {
 
-	unsigned char data = memory[target_address];
-	unsigned short diff = X - data;
+	uint8_t data = memory[target_address];
+	uint16_t diff = X - data;
 
 	proc_status &= ~(NEGATIVE_FLAG | CARRY_FLAG | ZERO_FLAG);
 
@@ -597,8 +597,8 @@ int NES_Cpu::CPX() {
 */
 int NES_Cpu::CPY() {
 
-	unsigned char data = memory[target_address];
-	unsigned short diff = Y - data;
+	uint8_t data = memory[target_address];
+	uint16_t diff = Y - data;
 
 	proc_status &= ~(NEGATIVE_FLAG | CARRY_FLAG | ZERO_FLAG);
 
@@ -777,8 +777,8 @@ int NES_Cpu::JMP() {
 int NES_Cpu::JSR() {
 
 	// Store pc into stack first
-	memory[sp] = (pc >> 8) & 0x00FF;
-	memory[sp - 1] = pc & 0x00FF;
+	memory[STACK_OFFSET + sp] = (pc >> 8) & 0x00FF;
+	memory[STACK_OFFSET + sp - 1] = pc & 0x00FF;
 	sp -= 2;
 
 	// Set program counter to the 2 byte instruction in the target address
@@ -870,7 +870,7 @@ int NES_Cpu::LSR() {
 	}
 	else {
 		// Arithmetic shift right the data at the target address
-		unsigned short shifted_result = memory[target_address] >> 1;
+		uint16_t shifted_result = memory[target_address] >> 1;
 
 		if (memory[target_address] & 0x0001) { // Carry flag 
 			proc_status |= CARRY_FLAG;
@@ -925,8 +925,8 @@ int NES_Cpu::ORA() {
 int NES_Cpu::PHA() {
 
 	// Push accumulator onto stack
+	memory[STACK_OFFSET + sp] = accumulator;
 	sp--;
-	memory[sp] = accumulator;
 
 	return 0;
 }
@@ -938,8 +938,8 @@ int NES_Cpu::PHA() {
 int NES_Cpu::PHP() {
 
 	// Push processor status onto stack
+	memory[STACK_OFFSET + sp] = proc_status;
 	sp--;
-	memory[sp] = proc_status;
 
 	return 0;
 }
@@ -952,7 +952,7 @@ int NES_Cpu::PLA() {
 
 	// Pull accumulator from stack
 	sp++;
-	accumulator = memory[sp];
+	accumulator = memory[STACK_OFFSET + sp];
 
 	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG);
 
@@ -976,7 +976,7 @@ int NES_Cpu::PLP() {
 
 	// Pull proc_status from stack
 	sp++;
-	proc_status = memory[sp];
+	proc_status = memory[STACK_OFFSET + sp];
 
 	return 0;
 }
@@ -988,7 +988,7 @@ int NES_Cpu::PLP() {
 int NES_Cpu::ROL() {
 
 	// Set up the data
-	unsigned char *reg;
+	uint8_t *reg;
 	if (use_accumulator) {
 		reg = &accumulator;
 	}
@@ -1031,7 +1031,7 @@ int NES_Cpu::ROL() {
 */
 int NES_Cpu::ROR() {
 	// Set up the data
-	unsigned char *reg;
+	uint8_t *reg;
 	if (use_accumulator) {
 		reg = &accumulator;
 	}
@@ -1076,11 +1076,11 @@ int NES_Cpu::RTI() {
 
 	// Pull back proc_status
 	sp++;
-	proc_status = memory[sp];
+	proc_status = memory[STACK_OFFSET + sp];
 
 	// Pull back program counter
 	sp+= 2;
-	pc = (memory[sp] << 8) | memory[sp - 1];
+	pc = (memory[STACK_OFFSET + sp] << 8) | memory[STACK_OFFSET + sp - 1];
 
 	return 0;
 }
@@ -1093,7 +1093,7 @@ int NES_Cpu::RTS() {
 
 	// Pull back program counter
 	sp += 2;
-	pc = (memory[sp] << 8) | memory[sp - 1];
+	pc = (memory[STACK_OFFSET + sp] << 8) | memory[STACK_OFFSET + sp - 1];
 
 	return 0;
 }
@@ -1105,7 +1105,7 @@ int NES_Cpu::RTS() {
 int NES_Cpu::SBC() {
 
 	// Set up the data
-	unsigned char *reg;
+	uint8_t *reg;
 	if (use_accumulator) {
 		reg = &accumulator;
 	}
@@ -1114,7 +1114,7 @@ int NES_Cpu::SBC() {
 	}
 
 	// Get difference
-	unsigned short diff = accumulator - *reg;
+	uint16_t diff = accumulator - *reg;
 
 	// Clear flags
 	proc_status &= ~(CARRY_FLAG | NEGATIVE_FLAG | ZERO_FLAG | OVERFLOW_FLAG);
@@ -1282,7 +1282,7 @@ int NES_Cpu::TSX() {
 	proc_status &= ~(NEGATIVE_FLAG | ZERO_FLAG);
 
 	// Check flags
-	if (sp & 0x0080) { // Negative flag
+	if (sp & 0x80) { // Negative flag
 		proc_status |= NEGATIVE_FLAG;
 	}
 
@@ -1435,7 +1435,7 @@ int NES_Cpu::IMP() {
 int NES_Cpu::IND() {
 
 	// Set target address to the address in the next two bytes
-	unsigned short indirect_address = memory[pc + 1] << 8 | memory[pc];
+	uint16_t indirect_address = memory[pc + 1] << 8 | memory[pc];
 	target_address = memory[indirect_address + 1] << 8 | memory[indirect_address];
 
 	// Update to show that we have made two accesses
@@ -1447,7 +1447,7 @@ int NES_Cpu::IND() {
 int NES_Cpu::IND_X() {
 
 	// Add immediate and X for the indirect address
-	unsigned short indirect_address = memory[pc] + X;
+	uint16_t indirect_address = memory[pc] + X;
 	target_address = memory[indirect_address + 1] << 8 | memory[indirect_address];
 
 	// Update to show that we have made an additional access
@@ -1459,7 +1459,7 @@ int NES_Cpu::IND_X() {
 int NES_Cpu::IND_Y() {
 
 	// Add immediate's data and Y for the indirect address
-	unsigned short indirect_address = memory[pc];
+	uint16_t indirect_address = memory[pc];
 	target_address = memory[indirect_address + 1] << 8 | memory[indirect_address];
 	target_address += Y;
 
