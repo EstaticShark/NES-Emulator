@@ -1,13 +1,7 @@
 #include <stdio.h>
-#include <SDL.h>
 #include <windows.h> 
 #include <iostream>
 #include <string>
-
-// Imports for sound
-#include <Mmsystem.h>
-#include <mciapi.h>
-#pragma comment(lib, "Winmm.lib")
 
 #include "NES.h"
 
@@ -20,11 +14,9 @@ using namespace std;
 // The CPU
 NES_Cpu cpu;
 
-// Keyboard mapping
-int read_keys(const Uint8 *keystate);
-
 int main(int argc, char * argv[]) {
 
+	/*
 	// Initialize SDL
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
 		printf("SDL_Init failed to intialize.\n");
@@ -59,11 +51,10 @@ int main(int argc, char * argv[]) {
 	const Uint8 *keystate = SDL_GetKeyboardState(NULL);
 
 	// Get the path to the game
-	/*
 	char game_file[20];
 	printf("Enter the game's name\n");
 	cin >> game_file;
-	*/
+	
 	
 
 
@@ -73,16 +64,15 @@ int main(int argc, char * argv[]) {
 	SDL_Quit();
 
 	printf("SDL exit\n");
-
-	return 0;
-}
+	*/
 
 
-/*
-	Read the keyboard input and set the input
-*/
-int read_keys(const Uint8 *keystate) {
+	// Get the path to the game
+	char game_file[20];
+	printf("Enter the game's name\n");
+	cin >> game_file;
 
+	int load_result = cpu.load(game_file);
 
 	return 0;
 }

@@ -3,6 +3,7 @@
 #include <string.h>
 #include "NES.h"
 
+// Set to 1 for logging
 int trace = 1;
 
 // Initialization
@@ -10,7 +11,7 @@ NES_Cpu::NES_Cpu() {
 	// Initialize values
 	pc = 0x0000;						
 	opcode = 0x00;
-	sp = STACK_OFFSET + 0x00;			// Decrements instead of increment: https://www.youtube.com/watch?v=fWqBmmPQP40
+	sp = 0x00;							// Decrements instead of increment: https://www.youtube.com/watch?v=fWqBmmPQP40
 	accumulator = 0x00;
 	X = 0x00;
 	Y = 0x00;
@@ -35,6 +36,51 @@ NES_Cpu::~NES_Cpu() {
 			unsigned int cycles;
 		} instruction_entry;
 */
+
+int NES_Cpu::load(const char* game) {
+
+	printf("game: %s\n", game);
+
+	// Open the game file and read it into our memory
+	FILE *game_file = fopen(game, "rb");
+	if (game_file == NULL) {
+		printf("Failed to open game file\n");
+		return 1;
+	}
+
+	// Find the file size
+	fseek(game_file, 0, SEEK_END);
+	int size = ftell(game_file);
+	fseek(game_file, 0, SEEK_SET);
+
+	void *reading_space = malloc(sizeof(char) * size);
+
+	std::cout << reading_space;
+
+	// Close the game file
+	fclose(game_file);
+
+	printf("Game loaded\n");
+
+	return 0;
+}
+
+
+void NES_Cpu::log() {
+	printf("\tAccumulator: %d\nX Register: %d\nY Register: %d\n", accumulator, X, Y);
+
+	char bits[8];
+	char proc = proc_status;
+	int i = 0;
+	while (i < 8){
+		bits[i] = proc % 2;
+		proc /= 2;
+		i++;
+	}
+
+	//(N,V,-,B,D,I,Z,C)
+	printf("\tN: %d,V: %d,-: %d,B: %d,D: %d,I: %d,Z: %d,C: %d", bits[7], bits[6], bits[5], bits[4], bits[3], bits[2], bits[1], bits[0]);
+}
 
 // Emulation cycling
 void NES_Cpu::cycle() {
@@ -65,22 +111,10 @@ void NES_Cpu::cycle() {
 	// Increment program counter
 	pc++;
 
-
+	
 	if (trace) {
 		printf("Pre-setup\n");
-		printf("\tAccumulator: %d\nX Register: %d\nY Register: %d\n", accumulator, X, Y);
-
-		char bits[8];
-		char proc = proc_status;
-		int i = 0;
-		while (i < 8){
-			bits[i] = proc % 2;
-			proc /= 2;
-			i++;
-		}
-
-		//(N,V,-,B,D,I,Z,C)
-		printf("\tN: %d,V: %d,-: %d,B: %d,D: %d,I: %d,Z: %d,C: %d", bits[7], bits[6], bits[5], bits[4], bits[3], bits[2], bits[1], bits[0]);
+		this->log();
 	}
 
 
@@ -89,19 +123,7 @@ void NES_Cpu::cycle() {
 
 	if(trace){
 		printf("Post-setup\n");
-		printf("\tAccumulator: %d\nX Register: %d\nY Register: %d\n", accumulator, X, Y);
-
-		char bits[8];
-		char proc = proc_status;
-		int i = 0;
-		while (i < 8){
-			bits[i] = proc % 2;
-			proc /= 2;
-			i++;
-		}
-
-		//(N,V,-,B,D,I,Z,C)
-		printf("\tN: %d,V: %d,-: %d,B: %d,D: %d,I: %d,Z: %d,C: %d", bits[7], bits[6], bits[5], bits[4], bits[3], bits[2], bits[1], bits[0]);
+		this->log();
 	}
 
 	// Run the operation for the appropriate amount of cycles
@@ -109,19 +131,7 @@ void NES_Cpu::cycle() {
 
 	if(trace){
 		printf("Post-operation\n");
-		printf("\tAccumulator: %d\nX Register: %d\nY Register: %d\n", accumulator, X, Y);
-
-		char bits[8];
-		char proc = proc_status;
-		int i = 0;
-		while (i < 8){
-			bits[i] = proc % 2;
-			proc /= 2;
-			i++;
-		}
-
-		//(N,V,-,B,D,I,Z,C)
-		printf("\tN: %d,V: %d,-: %d,B: %d,D: %d,I: %d,Z: %d,C: %d", bits[7], bits[6], bits[5], bits[4], bits[3], bits[2], bits[1], bits[0]);
+		this->log();
 	}
 
 	/*

@@ -160,6 +160,8 @@ class NES_Cpu {
 			{ "BEQ", &BEQ, &REL, 2 },{ "SBC", &SBC, &IND_Y, 5 },{ "???", &ILL, &IMP, 2 },{ "???", &ILL, &IMP, 8 },{ "???", &NOP, &IMP, 4 },{ "SBC", &SBC, &ZPG_X, 4 },{ "INC", &INC, &ZPG_X, 6 },{ "???", &ILL, &IMP, 6 },{ "SED", &SED, &IMP, 2 },{ "SBC", &SBC, &ABS_Y, 4 },{ "NOP", &NOP, &IMP, 2 },{ "???", &ILL, &IMP, 7 },{ "???", &NOP, &IMP, 4 },{ "SBC", &SBC, &ABS_X, 4 },{ "INC", &INC, &ABS_X, 7 },{ "???", &ILL, &IMP, 7 }
 		};
 
+		// Logging function
+		void log();
 
 		// All instruction functions
 		int ADC();
@@ -243,6 +245,9 @@ class NES_Cpu {
 		// Initialization and Destruction functions
 		NES_Cpu();
 		~NES_Cpu();
+
+		// Load the game file
+		int load(const char *game);
 
 		// Interrupts
 		void irq();										// Maskable Interrupt. Ignorable in certain cases
