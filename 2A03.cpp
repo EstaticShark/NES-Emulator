@@ -1,10 +1,41 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <iomanip>
 #include "NES.h"
 
 // Set to 1 for logging
 int trace = 1;
+
+// Special NES keyword to detect .nes files: "N", "E", "S", (rightarrow)
+const int MAGIC[4] = {78, 69, 83, 26};
+
+// Debugging functions
+
+int print_hex(uint8_t* data, int size) {
+
+	if (size % 2 != 0) {
+		printf("Irregular amount of bytes read");
+		return 1;
+	}
+
+	for (int j = 0; j < 16; j++) {
+		std::cout << std::hex << std::setfill('0') << std::setw(2) << j << " ";
+	}
+
+	std::cout << "\n";
+
+	// Printing in little endian order, increasing sig. from x to x + 1
+	for (int i = 0; i < size; i ++) {
+		std::cout << std::hex << std::setfill('0') << std::setw(2) << (int)data[i] << " ";
+		if (i % 16 == 15) {
+			printf("\n");
+		}
+	}
+
+	return 0;
+	
+}
 
 // Initialization
 NES_Cpu::NES_Cpu() {
@@ -39,7 +70,7 @@ NES_Cpu::~NES_Cpu() {
 
 int NES_Cpu::load(const char* game) {
 
-	printf("game: %s\n", game);
+	printf("Game: %s\n", game);
 
 	// Open the game file and read it into our memory
 	FILE *game_file = fopen(game, "rb");
@@ -53,12 +84,39 @@ int NES_Cpu::load(const char* game) {
 	int size = ftell(game_file);
 	fseek(game_file, 0, SEEK_SET);
 
-	void *reading_space = malloc(sizeof(char) * size);
-
-	std::cout << reading_space;
-
+	uint8_t *reading_space = (uint8_t *) malloc(sizeof(uint8_t) * size);
+	int bytes_read = fread(reading_space, 1, size, game_file);
+	
 	// Close the game file
 	fclose(game_file);
+
+	// Check bytes read
+	if (bytes_read != size) {
+		printf("Reading error, expected to read %d bytes, but instead read %d\n", size, bytes_read);
+		free(reading_space);
+		return 1;
+	}
+
+	// Print contents of the game file
+	if (trace) {
+		printf("Bytes Read: %d\nSize: %d\n", bytes_read, size);
+		//print_hex(reading_space, size);
+		printf("\n");
+	}
+
+	// Make sure that that the file is in the .nes format
+	for (int b = 0; b < 4; b++){
+		if (MAGIC[b] != reading_space[b]) {
+			printf("File is not in proper .nes format, check ROM hex for MAGIC keyword\n");
+			free(reading_space);
+			return 1;
+		}
+	}
+
+
+	// TODO:Map the bytes to the correct locations in memory
+
+
 
 	printf("Game loaded\n");
 
